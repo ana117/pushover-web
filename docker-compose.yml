@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  pushover-web:
+    build: .
+    container_name: pushover-web
+    ports:
+      - "8000:8000"
+    environment:
+      - SECRET_KEY=${SECRET_KEY:-your-secret-key-change-in-production}
+      - LOCAL_TIMEZONE_OFFSET_HOURS=${LOCAL_TIMEZONE_OFFSET_HOURS:-7}
+      - DATABASE_PATH=/app/instance/pushover_web.sqlite3
+    volumes:
+      - pushover-data:/app/instance
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8000', timeout=2)"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+
+volumes:
+  pushover-data:
+    driver: local
