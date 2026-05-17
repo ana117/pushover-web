@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+
+{% block title %}Pushover Web{% endblock %}
+
+{% block content %}
+{% block head %}
+  {% if page > 1 %}
+    <link rel="prev" href="{{ url_for('index', date_from=date_from, date_to=date_to, page_size=page_size, page=page-1) }}">
+    <link rel="first" href="{{ url_for('index', date_from=date_from, date_to=date_to, page_size=page_size, page=1) }}">
+  {% endif %}
+  {% if page < total_pages %}
+    <link rel="next" href="{{ url_for('index', date_from=date_from, date_to=date_to, page_size=page_size, page=page+1) }}">
+    <link rel="last" href="{{ url_for('index', date_from=date_from, date_to=date_to, page_size=page_size, page=total_pages) }}">
+  {% endif %}
+{% endblock %}
+
+<section class="panel">
+  <div class="panel-header">
+    <form class="filters" method="get" action="{{ url_for('index') }}">
+      <label>
+        <span>From</span>
+        <input type="date" name="date_from" value="{{ date_from }}">
+      </label>
+      <label>
+        <span>To</span>
+        <input type="date" name="date_to" value="{{ date_to }}">
+      </label>
+      <div class="filter-actions">
+        <button type="submit" class="button primary">Apply filters</button>
+        <a class="button ghost" href="{{ url_for('index') }}">Reset</a>
+      </div>
+    </form>
+    <p>{{ messages|length }} message{{ 's' if messages|length != 1 else '' }} shown</p>
+  </div>
+  
+  <form method="post" action="{{ url_for('remove_selected_messages') }}" id="bulk-delete-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <div class="table-wrap">
+      <table class="message-table">
+        <thead>
+          <tr>
+            <th class="check-col">
+              <input type="checkbox" id="select-all" aria-label="Select all messages">
+            </th>
+            <th>Time (WIB)</th>
+            <th>Title</th>
+            <th>Message</th>
+            <th>Icon</th>
+            <th class="action-col">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for message in messages %}
+          <tr>
+            <td class="check-col">
+              <input type="checkbox" name="message_ids" value="{{ message.id }}" aria-label="Select message {{ message.id }}">
+            </td>
+            <td>{{ message.created_at }}</td>
+            <td class="title-cell">{{ message.title }}</td>
+            <td class="message-cell">{{ message.message }}</td>
+            <td>
+              {% if message.icon %}
+                {% set icon = message.icon %}
+                {% if icon.startswith('data:') %}
+                  <img class="icon-img" src="{{ icon }}" alt="icon">
+                {% else %}
+                  {# assume raw base64 - default to PNG mime #}
+                  <img class="icon-img" src="data:image/png;base64,{{ icon }}" alt="icon">
+                {% endif %}
+              {% else %}
+                <span class="icon-pill">—</span>
+              {% endif %}
+            </td>
+            <td class="action-col">
+              <button
+                type="submit"
+                class="button transparent compact delete-button"
+                aria-label="Delete message"
+                title="Delete message"
+                formaction="{{ url_for('remove_message', message_id=message.id) }}"
+                formmethod="post"
+                formnovalidate
+                onclick="return confirm('Delete this message?');"
+              >
+                <span aria-hidden="true" class="trash-icon">&#128465;</span>
+              </button>
+            </td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="6" class="empty-state">
+              No messages match the selected filters.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="bulk-actions">
+      <p>Select rows to delete them together.</p>
+      <button
+        type="submit"
+        class="button danger"
+        aria-label="Delete selected messages"
+        title="Delete selected messages"
+        onclick="return confirm('Delete the selected messages?');"
+      >
+        <span aria-hidden="true">Delete</span>
+      </button>
+    </div>
+  </form>
+
+  <div class="panel-header pagination-controls">
+      {% if page > 1 %}
+        <a class="button ghost" href="{{ url_for('index', date_from=date_from, date_to=date_to, page_size=page_size, page=1) }}">«</a>
+        <a class="button ghost" href="{{ url_for('index', date_from=date_from, date_to=date_to, page_size=page_size, page=page-1) }}">&larr;</a>
+      {% else %}
+        <span class="button ghost" aria-disabled="true">«</span>
+        <span class="button ghost" aria-disabled="true">&larr;</span>
+      {% endif %}
+
+      <nav class="page-numbers" aria-label="Page navigation">
+        {% if start_page > 1 %}
+          <a class="button ghost" href="{{ url_for('index', date_from=date_from, date_to=date_to, page_size=page_size, page=1) }}">1</a>
+          {% if start_page > 2 %}<span class="ellipsis">…</span>{% endif %}
+        {% endif %}
+
+        {% for p in range(start_page, end_page + 1) %}
+          {% if p == page %}
+            <span class="button primary" aria-current="page">{{ p }}</span>
+          {% else %}
+            <a class="button ghost" href="{{ url_for('index', date_from=date_from, date_to=date_to, page_size=page_size, page=p) }}">{{ p }}</a>
+          {% endif %}
+        {% endfor %}
+
+        {% if end_page < total_pages %}
+          {% if end_page < total_pages - 1 %}<span class="ellipsis">…</span>{% endif %}
+          <a class="button ghost" href="{{ url_for('index', date_from=date_from, date_to=date_to, page_size=page_size, page=total_pages) }}">{{ total_pages }}</a>
+        {% endif %}
+      </nav>
+
+      {% if page < total_pages %}
+        <a class="button ghost" href="{{ url_for('index', date_from=date_from, date_to=date_to, page_size=page_size, page=page+1) }}">&rarr;</a>
+        <a class="button ghost" href="{{ url_for('index', date_from=date_from, date_to=date_to, page_size=page_size, page=total_pages) }}">»</a>
+      {% else %}
+        <span class="button ghost" aria-disabled="true">&rarr;</span>
+        <span class="button ghost" aria-disabled="true">»</span>
+      {% endif %}
+  </div>
+</section>
+
+<script>
+  const selectAll = document.getElementById('select-all');
+  if (selectAll) {
+    selectAll.addEventListener('change', () => {
+      document.querySelectorAll('input[name="message_ids"]').forEach((checkbox) => {
+        checkbox.checked = selectAll.checked;
+      });
+    });
+  }
+</script>
+{% endblock %}
