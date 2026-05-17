@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="light">
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -8,19 +8,43 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
   </head>
   <body>
-    <div class="page-shell">
-      <header class="hero">
-        <div class="hero-brand">
-          <img class="brand-logo" src="{{ url_for('static', filename='images/Pushover.png') }}" alt="Pushover Web logo">
-          <div>
-            <p class="eyebrow">Pushover Web</p>
-            <h1>Notifications</h1>
-          </div>
-        </div>
-      </header>
-      <main>
-        {% block content %}{% endblock %}
-      </main>
-    </div>
+    <header class="app-header">
+      <div class="header-content">
+        <img class="logo" src="{{ url_for('static', filename='images/Pushover.png') }}" alt="Pushover Web">
+        <h1>Pushover Web</h1>
+      </div>
+      <button id="theme-toggle" aria-label="Toggle light/dark theme">🌙</button>
+    </header>
+
+    <main class="app-container">
+      {% block content %}{% endblock %}
+    </main>
+
+    <script>
+      const html = document.documentElement;
+      const themeBtn = document.getElementById('theme-toggle');
+      
+      function initTheme() {
+        const stored = localStorage.getItem('theme');
+        const prefers = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        const theme = stored || prefers;
+        html.setAttribute('data-theme', theme);
+        updateIcon(theme);
+      }
+      
+      function updateIcon(theme) {
+        themeBtn.textContent = theme === 'dark' ? '☀️' : '🌙';
+      }
+      
+      themeBtn.addEventListener('click', () => {
+        const current = html.getAttribute('data-theme') || 'light';
+        const next = current === 'dark' ? 'light' : 'dark';
+        html.setAttribute('data-theme', next);
+        localStorage.setItem('theme', next);
+        updateIcon(next);
+      });
+      
+      initTheme();
+    </script>
   </body>
 </html>
