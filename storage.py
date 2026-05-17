@@ -72,6 +72,8 @@ def list_messages(
     end_date: date | None = None,
     limit: int | None = None,
     offset: int | None = None,
+    sort_by: str = "created_at",
+    sort_order: str = "desc",
 ) -> list[sqlite3.Row]:
     connection = get_db()
     query = [
@@ -89,7 +91,16 @@ def list_messages(
         query.append("AND date(created_at) <= date(?)")
         parameters.append(end_date.isoformat())
 
-    query.append("ORDER BY datetime(created_at) DESC, id DESC")
+    valid_sort_by = ["created_at", "title", "id"]
+    valid_sort_order = ["asc", "desc"]
+    
+    sort_by = sort_by.lower() if sort_by in valid_sort_by else "created_at"
+    sort_order = sort_order.upper() if sort_order.lower() in valid_sort_order else "DESC"
+    
+    if sort_by == "created_at":
+        query.append(f"ORDER BY datetime(created_at) {sort_order}, id DESC")
+    else:
+        query.append(f"ORDER BY {sort_by} {sort_order}, id DESC")
 
     if limit is not None:
         query.append("LIMIT ?")

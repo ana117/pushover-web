@@ -79,10 +79,58 @@ def create_app() -> Flask:
         )
 
     @app.get("/api/messages")
-    def register_message():
-        return jsonify({
-            "status": "ok",
-        })
+    def get_messages():
+        start_date, end_date = parse_date_filters()
+
+        page = 1
+        try:
+            page = int(request.args.get("page", "1"))
+        except ValueError:
+            pass
+        page = max(1, page)
+        page_size = 20
+        try:
+            page_size = int(request.args.get("page_size", "20"))
+        except ValueError:
+            pass
+        page_size = max(1, min(100, page_size))
+        offset = (page - 1) * page_size
+
+        sort_by = request.args.get("sort_by", "created_at").lower()
+        sort_order = request.args.get("sort_order", "desc").lower()
+
+
+        messages = storage.list_messages(
+            start_date=start_date,
+            end_date=end_date,
+            limit=page_size,
+            offset=offset,
+            sort_by=sort_by,
+            sort_order=sort_order,
+        )
+
+        custom_format = request.args.get("format")
+        response_messages = []
+        for message in messages:
+            response_messages.append({
+                **message,
+                "created_at": format_created_at_for_wib(message["created_at"]),
+            })
+            if custom_format:
+                response_messages[-1]["custom_formatted"] = custom_format.format(
+                    id=message["id"],
+                    title=message["title"],
+                    message=message["message"],
+                    icon=message["icon"],
+                    created_at=format_created_at_for_wib(message["created_at"]),
+                )
+
+        return jsonify(
+            {
+                "status": "ok",
+                "messages": response_messages,
+            }
+        )
 
     @app.post("/api/messages")
     def create_message():
