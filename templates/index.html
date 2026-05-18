@@ -13,6 +13,15 @@
   {% endif %}
 {% endblock %}
 
+{% block extra_header %}
+<form method="post" action="{{ url_for('cleanup_old_messages') }}" class="cleanup-form">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <button type="submit" class="btn btn-danger" title="Delete messages from yesterday and earlier" onclick="return confirm('This will delete all messages from yesterday and earlier. Continue?');">
+    🗑
+  </button>
+</form>
+{% endblock %}
+
 {% block content %}
 <section class="filters-section">
   <form class="filter-form" method="get" action="{{ url_for('index') }}">
@@ -148,6 +157,39 @@
 </section>
 {% endif %}
 
+<section class="blocked-titles-section">
+  <div class="blocked-titles-container">
+    <button class="accordion-toggle" id="blocked-titles-toggle" type="button" aria-expanded="false" aria-controls="blocked-titles-content">
+      <span class="accordion-icon">▼</span>
+      <h2>Blocked Titles</h2>
+    </button>
+    
+    <div class="accordion-content" id="blocked-titles-content">
+      <div class="blocked-titles-list">
+        {% if blocked_titles %}
+          {% for title in blocked_titles %}
+          <div class="blocked-title-item">
+            <span class="blocked-title-text">{{ title }}</span>
+            <form method="post" action="{{ url_for('remove_blocked_title', title=title) }}" style="display: inline;">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+              <button type="submit" class="btn-icon remove-btn" title="Remove" onclick="return confirm('Remove this blocked title?');">✕</button>
+            </form>
+          </div>
+          {% endfor %}
+        {% else %}
+          <p class="empty-blocked">No blocked titles</p>
+        {% endif %}
+      </div>
+      
+      <form method="post" action="{{ url_for('add_blocked_title') }}" class="add-blocked-title-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <input type="text" name="title" placeholder="Enter title to block" class="blocked-title-input">
+        <button type="submit" class="btn btn-primary">Add Block</button>
+      </form>
+    </div>
+  </div>
+</section>
+
 <script>
   const selectAll = document.getElementById('select-all');
   const bulkDeleteBtn = document.getElementById('bulk-delete-btn');
@@ -177,5 +219,16 @@
   });
   
   updateSelectAllState();
+
+  const accordionToggle = document.getElementById('blocked-titles-toggle');
+  const accordionContent = document.getElementById('blocked-titles-content');
+  
+  if (accordionToggle && accordionContent) {
+    accordionToggle.addEventListener('click', () => {
+      const isExpanded = accordionToggle.getAttribute('aria-expanded') === 'true';
+      accordionToggle.setAttribute('aria-expanded', !isExpanded);
+      accordionContent.style.display = isExpanded ? 'none' : 'block';
+    });
+  }
 </script>
 {% endblock %}

@@ -76,6 +76,7 @@ def create_app() -> Flask:
             start_page=start_page,
             end_page=end_page,
             csrf_token=session.get("csrf_token"),
+            blocked_titles=storage.get_blocked_titles(),
         )
 
     @app.get("/api/messages")
@@ -147,6 +148,12 @@ def create_app() -> Flask:
             print("Validation error:", str(error))
             return jsonify({"error": str(error)}), 400
 
+        # Check if title is blocked
+        blocked_titles = storage.get_blocked_titles()
+        if title.lower() in [bt.lower() for bt in blocked_titles]:
+            print(f"Blocked message with title: {title}")
+            return jsonify({"error": f"Messages with title '{title}' are not accepted."}), 403
+
         message_id, created_at = storage.insert_message(title=title, message=message, icon=icon)
         return (
             jsonify(
@@ -188,6 +195,41 @@ def create_app() -> Flask:
 
         if message_ids:
             storage.delete_messages(message_ids)
+        return redirect(url_for("index"))
+
+    @app.post("/blocked-titles/add")
+    def add_blocked_title():
+        token = request.form.get("csrf_token")
+        if not token or token != session.get("csrf_token"):
+            abort(403)
+
+        title = request.form.get("title", "").strip()
+        if not title:
+            return redirect(url_for("index"))
+
+        success = storage.add_blocked_title(title)
+        if not success:
+            print(f"Title '{title}' is already blocked")
+        return redirect(url_for("index"))
+
+    @app.post("/blocked-titles/<title>/remove")
+    def remove_blocked_title(title: str):
+        token = request.form.get("csrf_token")
+        if not token or token != session.get("csrf_token"):
+            abort(403)
+
+        storage.remove_blocked_title(title)
+        return redirect(url_for("index"))
+
+    @app.post("/messages/cleanup-old")
+    def cleanup_old_messages():
+        token = request.form.get("csrf_token")
+        if not token or token != session.get("csrf_token"):
+            abort(403)
+
+        today = datetime.now(timezone.utc).date()
+        deleted_count = storage.delete_messages_before(today)
+        print(f"Cleanup: Deleted {deleted_count} messages from {today} and earlier.")
         return redirect(url_for("index"))
 
     return app

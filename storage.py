@@ -16,6 +16,12 @@ CREATE TABLE IF NOT EXISTS messages (
 );
 
 CREATE INDEX IF NOT EXISTS idx_messages_created_at ON messages(created_at);
+
+CREATE TABLE IF NOT EXISTS blocked_titles (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT NOT NULL UNIQUE,
+    created_at TEXT NOT NULL
+);
 """
 
 
@@ -49,6 +55,15 @@ def init_app(app) -> None:
         """Create the database tables."""
         init_db()
         print("Initialized the database.")
+
+    @app.cli.command("cleanup-old-messages")
+    def cleanup_old_messages_command() -> None:
+        """Delete all messages from yesterday and earlier."""
+        from datetime import datetime, timezone, timedelta
+        today = datetime.now(timezone.utc).date()
+        yesterday = today - timedelta(days=1)
+        deleted_count = delete_messages_before(yesterday)
+        print(f"Deleted {deleted_count} messages from {yesterday} and earlier.")
 
 
 def insert_message(title: str, message: str, icon: str | None) -> tuple[int, str]:
@@ -149,6 +164,53 @@ def delete_messages(message_ids: list[int]) -> int:
     cursor = connection.execute(
         f"DELETE FROM messages WHERE id IN ({placeholders})",
         message_ids,
+    )
+    connection.commit()
+    return cursor.rowcount
+
+
+def delete_messages_before(before_date: date) -> int:
+    """Delete all messages created before the specified date (inclusive)."""
+    connection = get_db()
+    cursor = connection.execute(
+        "DELETE FROM messages WHERE date(created_at) < date(?)",
+        (before_date.isoformat(),),
+    )
+    connection.commit()
+    return cursor.rowcount
+
+
+def get_blocked_titles() -> list[str]:
+    """Retrieve all blocked titles."""
+    connection = get_db()
+    rows = connection.execute(
+        "SELECT title FROM blocked_titles ORDER BY title ASC"
+    ).fetchall()
+    return [row["title"] for row in rows]
+
+
+def add_blocked_title(title: str) -> bool:
+    """Add a blocked title. Returns True if added, False if already exists."""
+    connection = get_db()
+    try:
+        created_at = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+        connection.execute(
+            "INSERT INTO blocked_titles (title, created_at) VALUES (?, ?)",
+            (title, created_at),
+        )
+        connection.commit()
+        return True
+    except sqlite3.IntegrityError:
+        # Title already exists
+        return False
+
+
+def remove_blocked_title(title: str) -> int:
+    """Remove a blocked title. Returns the number of rows deleted."""
+    connection = get_db()
+    cursor = connection.execute(
+        "DELETE FROM blocked_titles WHERE title = ?",
+        (title,),
     )
     connection.commit()
     return cursor.rowcount
