@@ -427,6 +427,7 @@ html[data-theme="dark"] .delete-btn {
 }
 
 .blocked-titles-section {
+  margin-top: 2rem;
   padding: 0;
   background-color: var(--surface);
   border: 1px solid var(--border);
